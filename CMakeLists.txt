@@ -7,24 +7,29 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
- 
+
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
- 
+
 set(PROJECT_SOURCES
     main.cpp
     LimitedTextEdit.cpp
 )
 
-add_executable(church_lang ${PROJECT_SOURCES})
+if(WIN32)
+    add_executable(church_lang WIN32 ${PROJECT_SOURCES})
+else()
+    add_executable(church_lang ${PROJECT_SOURCES})
+endif()
 
 target_link_libraries(church_lang
     PRIVATE Qt${QT_VERSION_MAJOR}::Widgets
 )
 
+# Копируем папку res рядом с бинарником
 add_custom_command(TARGET church_lang
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/res"
-        "$<TARGET_FILE_DIR:church_lang>"
+        "$<TARGET_FILE_DIR:church_lang>/res"
 )
