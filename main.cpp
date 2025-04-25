@@ -11,81 +11,9 @@
 #include <QDir>
 #include <QDebug>
 #include <QPushButton>
+#include "LimitedTextEdit.h"
 
-class LimitedTextEdit : public QTextEdit
-{
-public:
-    LimitedTextEdit(int maxChars, QWidget *parent = nullptr)
-        : QTextEdit(parent), m_max(maxChars)
-    {
-        setAcceptRichText(false);
-    }
 
-protected:
-    void keyPressEvent(QKeyEvent *e) override
-    {
-        switch (e->key())
-        {
-        case Qt::Key_Backspace:
-        case Qt::Key_Delete:
-        case Qt::Key_Left:
-        case Qt::Key_Right:
-        case Qt::Key_Home:
-        case Qt::Key_End:
-        case Qt::Key_Tab:
-        case Qt::Key_Return:
-        case Qt::Key_Enter:
-            QTextEdit::keyPressEvent(e);
-            return;
-        default:
-            break;
-        }
-
-        QString txt = e->text();
-        if (txt.isEmpty())
-        {
-            QTextEdit::keyPressEvent(e);
-            return;
-        }
-
-        QChar c = txt.at(0);
-        if (!c.isDigit())
-        {
-            return;
-        }
-
-        int selLen = textCursor().selectedText().length();
-        int curLen = toPlainText().length() - selLen;
-        if (curLen + 1 <= m_max)
-        {
-            QTextEdit::keyPressEvent(e);
-        }
-    }
-
-    void insertFromMimeData(const QMimeData *source) override
-    {
-        QString text = source->text();
-        QString filtered;
-        for (QChar c : text)
-            if (c.isDigit())
-                filtered.append(c);
-
-        int selLen = textCursor().selectedText().length();
-        int curLen = toPlainText().length() - selLen;
-        int avail = m_max - curLen;
-        if (avail <= 0)
-            return;
-        if (filtered.length() > avail)
-            filtered.truncate(avail);
-
-        QMimeData md;
-        md.setText(filtered);
-        QTextEdit::insertFromMimeData(&md);
-    }
-
-private:
-    int m_max;
-};
 
 void CalculateName(LimitedTextEdit *numEdit,
                    LimitedTextEdit *limEdit,
@@ -96,21 +24,10 @@ void CalculateName(LimitedTextEdit *numEdit,
     QString limStr = limEdit->toPlainText();
     QString cvvStr = cvvEdit->toPlainText();
 
-    // …ваша логика подсчёта product…
-    long long int seed = 1;
-    auto multiplyDigits = [&](const QString &s)
-    {
-        for (QChar ch : s)
-        {
-            if (ch.isDigit())
-            {
-                seed *= static_cast<long long int>(ch.digitValue());
-            }
-        }
-    };
-    multiplyDigits(numStr);
-    multiplyDigits(limStr);
-    multiplyDigits(cvvStr);
+    QString combined = numStr + limStr + cvvStr;
+    quint32 seed = qHash(combined);
+
+    qsrand(seed);
 
     QString namesContent;
     {
@@ -161,8 +78,17 @@ int main(int argc, char *argv[])
     QLocale::setDefault(QLocale(QLocale::Russian, QLocale::Russia));
 
     QWidget window;
-    window.setFixedSize(650, 800);
-    window.setStyleSheet("background-color: yellow;");
+    window.setFixedSize(650, 700);
+    window.setStyleSheet(R"(
+        QWidget {
+            background-color: yellow;
+        }
+        QPushButton,
+        QTextEdit,
+        QLineEdit {
+            background-color: white;
+        }
+    )");
 
     QPixmap pix("church.png");
     if (pix.isNull())
