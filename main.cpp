@@ -9,25 +9,33 @@
 #include <QKeyEvent>
 #include <QMimeData>
 #include <QDir>
+#include <QUrl>
 #include <QDebug>
 #include <QPushButton>
 #include "LimitedTextEdit.h"
-
-
+#include <QMediaPlayer>
+#include <QAudioOutput>
+#include <QRandomGenerator>
 
 void CalculateName(LimitedTextEdit *numEdit,
-                   LimitedTextEdit *limEdit,
+                   LimitedTextEdit *YearLim,
+                   LimitedTextEdit *MonthLim,
                    LimitedTextEdit *cvvEdit,
                    QLabel *Out)
 {
     QString numStr = numEdit->toPlainText();
-    QString limStr = limEdit->toPlainText();
+    QString ylimStr = YearLim->toPlainText();
+    QString mlimStr = MonthLim->toPlainText();
     QString cvvStr = cvvEdit->toPlainText();
 
-    QString combined = numStr + limStr + cvvStr;
-    quint32 seed = qHash(combined);
+    if (cvvStr.size() != 3 || ylimStr.size() != 2 || mlimStr.size() != 2 || numStr.size() != 16)
+    {
+        Out->setText("Не торопись, друг мой");
+        return;
+    }
 
-    qsrand(seed);
+    QString combined = numStr + ylimStr + mlimStr + cvvStr;
+    quint32 seed = qHash(combined);
 
     QString namesContent;
     {
@@ -35,7 +43,6 @@ void CalculateName(LimitedTextEdit *numEdit,
         if (f.open(QIODevice::ReadOnly | QIODevice::Text))
         {
             QTextStream in(&f);
-            in.setCodec("UTF-8");
             namesContent = in.readAll();
         }
         else
@@ -50,7 +57,6 @@ void CalculateName(LimitedTextEdit *numEdit,
         if (f.open(QIODevice::ReadOnly | QIODevice::Text))
         {
             QTextStream in(&f);
-            in.setCodec("UTF-8");
             secNamesContent = in.readAll();
         }
         else
@@ -62,12 +68,12 @@ void CalculateName(LimitedTextEdit *numEdit,
     QStringList names = namesContent.split('\n', Qt::SkipEmptyParts);
     QStringList secondnames = secNamesContent.split('\n', Qt::SkipEmptyParts);
 
-    qsrand(seed);
+    QRandomGenerator gen(seed);
 
     QString outText;
-    outText += names[qrand() % names.size()];
+    outText += names[gen.bounded(names.size())];
     outText += " ";
-    outText += secondnames[qrand() % secondnames.size()];
+    outText += secondnames[gen.bounded(secondnames.size())];
 
     Out->setText(outText);
 }
@@ -80,15 +86,37 @@ int main(int argc, char *argv[])
     QWidget window;
     window.setFixedSize(650, 700);
     window.setStyleSheet(R"(
-        QWidget {
-            background-color: yellow;
-        }
-        QPushButton,
-        QTextEdit,
-        QLineEdit {
-            background-color: white;
-        }
-    )");
+    QWidget {
+        background-color: yellow;
+        color: black;
+    }
+    QPushButton,
+    QTextEdit,
+    QLineEdit {
+        background-color: white;
+        color: black;
+    }
+)");
+
+
+    QString path = QDir(QCoreApplication::applicationDirPath()).filePath("song.mp3");
+    QUrl url = QUrl::fromLocalFile(path);
+
+    if (!QFile::exists(path)) {
+        qWarning() << "Не найден аудиофайл:" << path;
+    }
+
+    QMediaPlayer *player = new QMediaPlayer;
+    QAudioOutput *audio = new QAudioOutput;
+
+    player->setAudioOutput(audio);
+    audio->setVolume(0.5); // от 0.0 до 1.0
+
+    player->setSource(url);
+    player->play();
+
+
+
 
     QPixmap pix("church.png");
     if (pix.isNull())
@@ -160,7 +188,7 @@ int main(int argc, char *argv[])
     Bottt->addWidget(Out);
 
     QObject::connect(Enter, &QPushButton::clicked, [&]()
-                     { CalculateName(eNum, eMonth, eCVC, Out); });
+                     { CalculateName(eNum, eYear, eMonth, eCVC, Out); });
 
     window.show();
     return app.exec();
