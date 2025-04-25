@@ -20,6 +20,8 @@ public:
         : QTextEdit(parent), m_max(maxChars)
     {
         setAcceptRichText(false);
+        setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     }
 
 protected:
